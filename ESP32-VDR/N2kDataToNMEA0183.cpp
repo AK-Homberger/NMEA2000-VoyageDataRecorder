@@ -47,7 +47,7 @@ void tN2kDataToNMEA0183::HandleMsg(const tN2kMsg &N2kMsg) {
 }
 
 //*****************************************************************************
-uint16_t tN2kDataToNMEA0183::Update() {
+long tN2kDataToNMEA0183::Update() {
   SendRMC();
   if ( LastHeadingTime + 2000 < millis() ) Heading = N2kDoubleNA;
   if ( LastCOGSOGTime + 2000 < millis() ) {
@@ -62,7 +62,11 @@ uint16_t tN2kDataToNMEA0183::Update() {
     WindSpeed = N2kDoubleNA;
     WindAngle = N2kDoubleNA;
   }
-return(DaysSince1970); // Needed for SD Filename
+if (SecondsSinceMidnight!=N2kDoubleNA && DaysSince1970!=N2kUInt16NA){
+   return((DaysSince1970*3600*24)+SecondsSinceMidnight); // Needed for SD Filename and time
+  } else {
+   return(0); // Needed for SD Filename and time 
+  }
 }
 
 //*****************************************************************************

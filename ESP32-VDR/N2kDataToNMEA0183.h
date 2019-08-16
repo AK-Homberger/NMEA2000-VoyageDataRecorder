@@ -93,6 +93,6 @@ public:
   void SetSendNMEA0183MessageCallback(tSendNMEA0183MessageCallback _SendNMEA0183MessageCallback) {
     SendNMEA0183MessageCallback=_SendNMEA0183MessageCallback;
   }
-  uint16_t Update();
+  long Update();
 };
 

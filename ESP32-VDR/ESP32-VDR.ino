@@ -13,7 +13,7 @@
 */
 
 // ESP32 - NMEA2000 to NMEA0182 Multiplexer and SD Card Voyage Data Recorder
-// Version 0.1, 16.08.2019, AK-Homberger
+// Version 0.2, 16.08.2019, AK-Homberger
 
 #include <Arduino.h>
 #include <NMEA2000_CAN.h>  // This will automatically choose right CAN library and create suitable NMEA2000 object
@@ -24,6 +24,7 @@
 #include <SD.h>
 #include <SPI.h>
 #include <time.h>
+#include <sys/time.h>
 #include "N2kDataToNMEA0183.h"
 
 #define ENABLE_DEBUG_LOG 1 // Debug log, set to 1 to enable forward on USB-Serial
@@ -33,6 +34,9 @@ bool LedState=false;
 
 bool SendNMEA0183Conversion = true; // Do we send/log NMEA2000 -> NMEA0183 conversion
 bool SendSeaSmart = false; // Do we send/log NMEA2000 messages in SeaSmart format
+
+long timezone = 1; 
+byte daysavetime = 1;
 
 tN2kDataToNMEA0183 tN2kDataToNMEA0183(&NMEA2000, 0);
 
@@ -61,8 +65,7 @@ void debug_log(char* str) {
 }
 
 bool SDavailable = false;
-char FileName[80] = "/NoValidDate.log";
-uint16_t MyDaysSince1970=N2kUInt16NA;
+long MyTime=0;
 
 
 void setup() {
@@ -97,16 +100,21 @@ void setup() {
 // Write Buffer to SD Card
 
 void WriteSD(const char * message) {
+  char FileName[80] = "/NoValidDate.log";
+  char DirName[15] =  "/";
   File dataFile;
 
   if (!SDavailable) return;  // No SD card, no logging!!!
   
-  if (MyDaysSince1970!=N2kUInt16NA) {
-    time_t rawtime = (MyDaysSince1970*3600*24)+(millis()/1000); // Create Time from NMEA 2000 DaysSince1970 + ESP runtime
+  if (MyTime!=0) {
+    time_t rawtime = MyTime; // Create Time from NMEA 2000 time
     struct tm  ts;
     ts = *localtime(&rawtime);
-    strftime(FileName, sizeof(FileName), "/%Y-%m-%d-%H.log", &ts); / Create Filname: Date + Hour runtime
+    strftime(DirName, sizeof(DirName), "/%Y-%m-%d", &ts); // Create directory name from date
+    strftime(FileName, sizeof(FileName), "/%Y-%m-%d/%Y-%m-%d-%H.log", &ts); // Create Filname: Dir + Date + Hour runtime
   }    
+
+  SD.mkdir(DirName);
   
   digitalWrite(LED_BUILTIN, LedState);
   LedState=!LedState;
@@ -155,15 +163,23 @@ void SendNMEA0183Message(const tNMEA0183Msg & NMEA0183Msg) {
 
 
 void loop() {
-
+  bool TimeSet=false;
+  
   if (NMEA0183.GetMessage(NMEA0183Msg)) {  // Get AIS NMEA sentences from serial2
     SendNMEA0183Message(NMEA0183Msg);      // Send to SD Card
   }
   
   NMEA2000.ParseMessages();
   
-  MyDaysSince1970=tN2kDataToNMEA0183.Update();
+  MyTime=tN2kDataToNMEA0183.Update();
 
+  if(MyTime!=0 && !TimeSet){
+    struct timeval tv;
+    tv.tv_sec = MyTime;
+    settimeofday(&tv, NULL);
+    TimeSet=true;
+  }
+  
   // Dummy to empty input buffer to avoid board to stuck with e.g. NMEA Reader
   if ( Serial.available() ) {
     Serial.read();
