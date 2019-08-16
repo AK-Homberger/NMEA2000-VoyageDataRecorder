@@ -1,7 +1,8 @@
 # NMEA2000-VoyageDataRecorder
 
 This is the develoment space for a NMEA 2000 Voyage Data Recorder based on an ESP32 with CAN bus and SD card.
-The logger is using a SN65HVD230 CAN bus transceiver. See ESP32-SD.png for connection details for SD card and transceiver.
+The logger is using a SN65HVD230 CAN bus transceiver.
+
 The shown CAN bus ports of the ESP32 (GPIO 02/04) are valid for an AzDelivery ESP32 NODE MCU development board. Other ESP32 derivates may use different ports!
 
 ![SD card pins](https://github.com/AK-Homberger/NMEA2000-VoyageDataRecorder/blob/master/ESP32-SD.png)
