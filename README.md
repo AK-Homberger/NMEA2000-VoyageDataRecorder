@@ -1,9 +1,15 @@
 # NMEA2000-VoyageDataRecorder
 
 This is the develoment space for a NMEA 2000 Voyage Data Recorder based on an ESP32 with CAN bus and SD card.
+For SD card details see examples in the ESP32 library
 
-Desired features:
+The logger is designed to be used with the OpenCPN Voyage Data Recorder Plugin.
 
-- Store NMEA 2000 data permanently to SD card
+Current features:
+
+- Convert NMEA2000 to NMEA0183 (or alternatively to SeaSmart) messages
+- Mutiplex serial data from port 2 to NMEA0183 (for AIS messages)
+- Store NMEA0183 messages data permanently to SD card
 - Optional storage as Seasmart data
-- Optional storage as NMEA0183 sentences (to be replayed with OpenCPN)
+
+Version 0.1: 16.08.2019
