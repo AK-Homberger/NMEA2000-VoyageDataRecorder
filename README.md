@@ -1,7 +1,7 @@
 # NMEA2000-VoyageDataRecorder
 
 This is the develoment space for a NMEA 2000 Voyage Data Recorder based on an ESP32 with CAN bus and SD card.
-For SD card details see examples in the ESP32 library.
+For SD card details see examples in the ESP32 library. See ESP32-SD.png for connection details.
 
 The logger is designed to be used with the OpenCPN Voyage Data Recorder Plugin.
 
