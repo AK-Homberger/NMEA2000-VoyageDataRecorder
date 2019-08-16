@@ -7,7 +7,7 @@ The logger is designed to be used with the OpenCPN Voyage Data Recorder Plugin.
 
 Current features:
 
-- Convert NMEA2000 to NMEA0183 (or alternatively to SeaSmart) messages
+- Convert NMEA2000 to NMEA0183 (or alternatively to Seasmart) messages
 - Store NMEA0183 messages data permanently to SD card
 - Optional storage as Seasmart data
 - Optional mutiplexing serial data from port 2 to NMEA0183 (e.g. for AIS messages). See WifiGateway for circuit for RS232 level coversion
