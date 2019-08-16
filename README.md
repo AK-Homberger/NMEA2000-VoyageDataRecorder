@@ -4,6 +4,8 @@ This is the develoment space for a NMEA 2000 Voyage Data Recorder based on an ES
 The logger is using a SN65HVD230 CAN bus transceiver. See ESP32-SD.png for connection details for SD card and transceiver.
 The shown CAN bus ports of the ESP32 (GPIO 02/04) are valid for an AzDelivery ESP32 NODE MCU development board. Other ESP32 derivates may use different ports!
 
+![SD card pins](http://i.imgur.com/4CoXOuR.png)
+
 The logger is designed to be used with the OpenCPN Voyage Data Recorder Plugin.
 
 Current features:
