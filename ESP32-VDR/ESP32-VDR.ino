@@ -35,9 +35,6 @@ bool LedState=false;
 bool SendNMEA0183Conversion = true; // Do we send/log NMEA2000 -> NMEA0183 conversion
 bool SendSeaSmart = false; // Do we send/log NMEA2000 messages in SeaSmart format
 
-long timezone = 1; 
-byte daysavetime = 1;
-
 tN2kDataToNMEA0183 tN2kDataToNMEA0183(&NMEA2000, 0);
 
 // Forward declarations
@@ -107,11 +104,11 @@ void WriteSD(const char * message) {
   if (!SDavailable) return;  // No SD card, no logging!!!
   
   if (MyTime!=0) {
-    time_t rawtime = MyTime; // Create Time from NMEA 2000 time
+    time_t rawtime = MyTime; // Create time from NMEA 2000 time (UTC)
     struct tm  ts;
     ts = *localtime(&rawtime);
     strftime(DirName, sizeof(DirName), "/%Y-%m-%d", &ts); // Create directory name from date
-    strftime(FileName, sizeof(FileName), "/%Y-%m-%d/%Y-%m-%d-%H.log", &ts); // Create Filname: Dir + Date + Hour runtime
+    strftime(FileName, sizeof(FileName), "/%Y-%m-%d/%Y-%m-%d-%H.log", &ts); // Create Filname: Dir + Date + Hour 
   }    
 
   SD.mkdir(DirName);
@@ -173,7 +170,7 @@ void loop() {
   
   MyTime=tN2kDataToNMEA0183.Update();
 
-  if(MyTime!=0 && !TimeSet){
+  if(MyTime!=0 && !TimeSet){  // Set system time from valid NMEA2000 time (only once)
     struct timeval tv;
     tv.tv_sec = MyTime;
     settimeofday(&tv, NULL);
