@@ -11,12 +11,14 @@ The logger is designed to be used with the OpenCPN Voyage Data Recorder Plugin.
 
 Current features:
 
-- Convert NMEA2000 to NMEA0183 (or alternatively to Seasmart) messages
-- Store NMEA0183 messages data permanently to SD card
-- Optional storage as Seasmart data
+- Convert NMEA2000 to NMEA0183 (or alternatively to Seasmart/Actisense)
+- Store NMEA0183 messages data permanently to SD card (.log)
+- Optional storage as Seasmart (.ssm) or Actisense (.ebl) data
 - Optional mutiplexing serial data from port 2 to NMEA0183 (e.g. for AIS messages). See WifiGateway for circuit for RS232 level conversion
 
 The code is based on the NMEA 2000 library from Timo Lappalainen (https://github.com/ttlappalainen/NMEA2000).
+
+Version 0.3: 17.08.2019 - Allow logging of NMEA0183 (.log), Seasamart (.ssm) and Actisense format (.ebl).
 
 Version 0.2: 16.08.2019 - Create directories per day, files per hour. Synchronising ESP32 time with NMEA2000 time
 
