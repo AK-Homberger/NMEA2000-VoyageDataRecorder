@@ -18,7 +18,7 @@ Current features:
 
 The code is based on the NMEA 2000 library from Timo Lappalainen (https://github.com/ttlappalainen/NMEA2000).
 
-Version 0.3: 17.08.2019 - Allow logging of NMEA0183 (.log), Seasamart (.ssm) and Actisense format (.ebl).
+Version 0.3: 17.08.2019 - Allow logging of NMEA0183 (.log), Seasmart (.ssm) and Actisense format (.ebl).
 
 Version 0.2: 16.08.2019 - Create directories per day, files per hour. Synchronising ESP32 time with NMEA2000 time
 
