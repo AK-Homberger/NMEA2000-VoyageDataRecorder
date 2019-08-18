@@ -16,8 +16,11 @@ Current features:
 - Store NMEA0183 messages data permanently to SD card (.log)
 - Optional storage as Seasmart (.ssm) or Actisense (.ebl) data
 - Optional mutiplexing serial data from port 2 to NMEA0183 (e.g. for AIS messages). See WifiGateway for circuit for RS232 level conversion.
+- Configuration via config.txt file in SD root directory. Just add keywords (NMEA, Actisense or Seasmart) to enable logging format. No config file means NMEA logging as default.
 
 The code is based on the NMEA 2000 library from Timo Lappalainen (https://github.com/ttlappalainen/NMEA2000).
+
+Version 0.4: 18.08.2019 - Added configuration via config.txt file on SD card
 
 Version 0.3: 17.08.2019 - Allow logging of NMEA0183 (.log), Seasmart (.ssm) and Actisense format (.ebl).
 
