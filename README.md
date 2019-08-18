@@ -15,7 +15,7 @@ Current features:
 - Convert NMEA2000 to NMEA0183 (or alternatively to Seasmart/Actisense)
 - Store NMEA0183 messages data permanently to SD card (.log)
 - Optional storage as Seasmart (.ssm) or Actisense (.ebl) data
-- Optional mutiplexing serial data from port 2 to NMEA0183 (e.g. for AIS messages). See WifiGateway for circuit for RS232 level conversion
+- Optional mutiplexing serial data from port 2 to NMEA0183 (e.g. for AIS messages). See WifiGateway for circuit for RS232 level conversion.
 
 The code is based on the NMEA 2000 library from Timo Lappalainen (https://github.com/ttlappalainen/NMEA2000).
 
