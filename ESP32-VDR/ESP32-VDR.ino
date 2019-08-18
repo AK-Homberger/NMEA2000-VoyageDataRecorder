@@ -13,7 +13,7 @@
 */
 
 // ESP32 - NMEA2000 to NMEA0182 Multiplexer and SD Card Voyage Data Recorder
-// Version 0.3, 17.08.2019, AK-Homberger
+// Version 0.4, 18.08.2019, AK-Homberger
 
 #include <Arduino.h>
 #include <NMEA2000_CAN.h>  // This will automatically choose right CAN library and create suitable NMEA2000 object
@@ -29,9 +29,9 @@
 #include "N2kDataToNMEA0183.h"
 
 #define MaxActisenseMsgBuf 400
-#define MAX_NMEA2000_MESSAGE_SEASMART_SIZE 500 
+#define MAX_NMEA2000_MESSAGE_SEASMART_SIZE 500
 
-#define ENABLE_DEBUG_LOG 1 // Debug log, set to 1 to enable forward on USB-Serial
+#define ENABLE_DEBUG_LOG 0 // Debug log, set to 1 to enable forward on USB-Serial
 
 #define Escape 0x10
 #define StartOfText 0x02
@@ -44,11 +44,11 @@
 
 
 int LED_BUILTIN = 1;
-bool LedState=false;
+bool LedState = false;
 
 bool SendNMEA0183Conversion = true; // Do we send/log NMEA2000 -> NMEA0183 conversion
-bool SendSeaSmart = true; // Do we send/log NMEA2000 messages in SeaSmart format
-bool SendActisense = true; // Do we send/log NMEA2000 messages in Actisense format
+bool SendSeaSmart = false; // Do we send/log NMEA2000 messages in SeaSmart format
+bool SendActisense = false; // Do we send/log NMEA2000 messages in Actisense format
 
 
 tN2kDataToNMEA0183 tN2kDataToNMEA0183(&NMEA2000, 0);
@@ -78,13 +78,13 @@ void debug_log(char* str) {
 }
 
 bool SDavailable = false;
-long MyTime=0;
+long MyTime = 0;
 
 //*****************************************************************************
 void setup() {
 
   pinMode (LED_BUILTIN, OUTPUT);
-  
+
   // Init USB serial port
   Serial.begin(115200);
 
@@ -99,7 +99,10 @@ void setup() {
   else if (SDavailable && (SD.cardType() == CARD_NONE)) {
     Serial.println("No SD card attached");
     SDavailable = false;
-  } else Serial.println("SD card attached");
+  } else {
+    Serial.println("SD card attached");
+    ReadConfigFile();
+  }
 
   NMEA2000.AttachMsgHandler(&tN2kDataToNMEA0183); // NMEA 2000 -> NMEA 0183 conversion
   NMEA2000.SetMsgHandler(HandleNMEA2000Msg); // Also send all NMEA2000 messages in SeaSmart and Actisense format
@@ -109,56 +112,99 @@ void setup() {
 }
 
 //*****************************************************************************
+void ReadConfigFile() {
+
+  char buf[80] = "";
+  int i = 0;
+  const char delim[] = " \n,";
+  char *rest = NULL;
+  char *token;
+
+  File file = SD.open("/config.txt");
+  if (!file) return;  // No config file
+
+  SendNMEA0183Conversion = false;  // Config file available set all options to false
+  SendActisense = false;
+  SendSeaSmart = false;
+
+  while (file.available() && (i < sizeof(buf) - 1) ) {
+    buf[i] = file.read();
+    i++;
+  }
+  buf[i] = '\0';
+
+  file.close();
+
+  for (token = strtok_r(buf, delim, &rest); token != NULL; token = strtok_r(NULL, delim, &rest)) {
+
+    if ((int)token[strlen(token) - 1] == 13) token[strlen(token) - 1] = 0; // Remove Line Feed character from token
+
+    if (strcasecmp(token, "NMEA") == 0) SendNMEA0183Conversion = true;
+    if (strcasecmp(token, "Actisense") == 0) SendActisense = true;
+    if (strcasecmp(token, "Seasmart") == 0) SendSeaSmart = true;
+  }
+
+#if ENABLE_DEBUG_LOG == 1
+
+  Serial.print("NMEA="); Serial.println(SendNMEA0183Conversion);
+  Serial.print("Actisense="); Serial.println(SendActisense);
+  Serial.print("Seasmart="); Serial.println(SendSeaSmart);
+
+#endif
+}
+
+
+//*****************************************************************************
 void MyAddByteEscapedToBuf(unsigned char byteToAdd, uint8_t &idx, unsigned char *buf, int &byteSum)
 {
-  buf[idx++]=byteToAdd;
-  byteSum+=byteToAdd;
+  buf[idx++] = byteToAdd;
+  byteSum += byteToAdd;
 
   if (byteToAdd == Escape) {
-    buf[idx++]=Escape;
+    buf[idx++] = Escape;
   }
 }
 
 //*****************************************************************************
 size_t N2kToActisense(const tN2kMsg &msg, unsigned char *ActisenseMsgBuf, size_t size) {
 
-  uint8_t msgIdx=0;
+  uint8_t msgIdx = 0;
   int byteSum = 0;
   uint8_t CheckSum;
-    
-  unsigned long _PGN=msg.PGN;
-  unsigned long _MsgTime=msg.MsgTime;
+
+  unsigned long _PGN = msg.PGN;
+  unsigned long _MsgTime = msg.MsgTime;
 
   if (size < MaxActisenseMsgBuf) return (0);
 
-  ActisenseMsgBuf[msgIdx++]=Escape;
-  ActisenseMsgBuf[msgIdx++]=StartOfText;
-  MyAddByteEscapedToBuf(MsgTypeN2k,msgIdx,ActisenseMsgBuf,byteSum);
-  MyAddByteEscapedToBuf(msg.DataLen+11,msgIdx,ActisenseMsgBuf,byteSum); //length does not include escaped chars
-  MyAddByteEscapedToBuf(msg.Priority,msgIdx,ActisenseMsgBuf,byteSum);
-  MyAddByteEscapedToBuf(_PGN & 0xff,msgIdx,ActisenseMsgBuf,byteSum); _PGN>>=8;
-  MyAddByteEscapedToBuf(_PGN & 0xff,msgIdx,ActisenseMsgBuf,byteSum); _PGN>>=8;
-  MyAddByteEscapedToBuf(_PGN & 0xff,msgIdx,ActisenseMsgBuf,byteSum);
-  MyAddByteEscapedToBuf(msg.Destination,msgIdx,ActisenseMsgBuf,byteSum);
-  MyAddByteEscapedToBuf(msg.Source,msgIdx,ActisenseMsgBuf,byteSum);
+  ActisenseMsgBuf[msgIdx++] = Escape;
+  ActisenseMsgBuf[msgIdx++] = StartOfText;
+  MyAddByteEscapedToBuf(MsgTypeN2k, msgIdx, ActisenseMsgBuf, byteSum);
+  MyAddByteEscapedToBuf(msg.DataLen + 11, msgIdx, ActisenseMsgBuf, byteSum); //length does not include escaped chars
+  MyAddByteEscapedToBuf(msg.Priority, msgIdx, ActisenseMsgBuf, byteSum);
+  MyAddByteEscapedToBuf(_PGN & 0xff, msgIdx, ActisenseMsgBuf, byteSum); _PGN >>= 8;
+  MyAddByteEscapedToBuf(_PGN & 0xff, msgIdx, ActisenseMsgBuf, byteSum); _PGN >>= 8;
+  MyAddByteEscapedToBuf(_PGN & 0xff, msgIdx, ActisenseMsgBuf, byteSum);
+  MyAddByteEscapedToBuf(msg.Destination, msgIdx, ActisenseMsgBuf, byteSum);
+  MyAddByteEscapedToBuf(msg.Source, msgIdx, ActisenseMsgBuf, byteSum);
   // Time?
-  MyAddByteEscapedToBuf(_MsgTime & 0xff,msgIdx,ActisenseMsgBuf,byteSum); _MsgTime>>=8;
-  MyAddByteEscapedToBuf(_MsgTime & 0xff,msgIdx,ActisenseMsgBuf,byteSum); _MsgTime>>=8;
-  MyAddByteEscapedToBuf(_MsgTime & 0xff,msgIdx,ActisenseMsgBuf,byteSum); _MsgTime>>=8;
-  MyAddByteEscapedToBuf(_MsgTime & 0xff,msgIdx,ActisenseMsgBuf,byteSum);
-  MyAddByteEscapedToBuf(msg.DataLen,msgIdx,ActisenseMsgBuf,byteSum);
+  MyAddByteEscapedToBuf(_MsgTime & 0xff, msgIdx, ActisenseMsgBuf, byteSum); _MsgTime >>= 8;
+  MyAddByteEscapedToBuf(_MsgTime & 0xff, msgIdx, ActisenseMsgBuf, byteSum); _MsgTime >>= 8;
+  MyAddByteEscapedToBuf(_MsgTime & 0xff, msgIdx, ActisenseMsgBuf, byteSum); _MsgTime >>= 8;
+  MyAddByteEscapedToBuf(_MsgTime & 0xff, msgIdx, ActisenseMsgBuf, byteSum);
+  MyAddByteEscapedToBuf(msg.DataLen, msgIdx, ActisenseMsgBuf, byteSum);
 
-  for (int i = 0; i < msg.DataLen; i++) MyAddByteEscapedToBuf(msg.Data[i],msgIdx,ActisenseMsgBuf,byteSum);
+  for (int i = 0; i < msg.DataLen; i++) MyAddByteEscapedToBuf(msg.Data[i], msgIdx, ActisenseMsgBuf, byteSum);
   byteSum %= 256;
 
   CheckSum = (uint8_t)((byteSum == 0) ? 0 : (256 - byteSum));
-  ActisenseMsgBuf[msgIdx++]=CheckSum;
-  if (CheckSum==Escape) ActisenseMsgBuf[msgIdx++]=CheckSum;
+  ActisenseMsgBuf[msgIdx++] = CheckSum;
+  if (CheckSum == Escape) ActisenseMsgBuf[msgIdx++] = CheckSum;
 
   ActisenseMsgBuf[msgIdx++] = Escape;
   ActisenseMsgBuf[msgIdx++] = EndOfText;
 
-return (msgIdx);
+  return (msgIdx);
 }
 
 
@@ -171,30 +217,39 @@ void WriteSD(const char * message, int len, int logtype) {
   File dataFile;
 
   if (!SDavailable) return;  // No SD card, no logging!!!
-  
-  if (MyTime!=0) {
+
+  if (MyTime != 0) {
     time_t rawtime = MyTime; // Create time from NMEA 2000 time (UTC)
     struct tm  ts;
     ts = *localtime(&rawtime);
-    
+
     strftime(DirName, sizeof(DirName), "/%Y-%m-%d", &ts); // Create directory name from date
 
-    if ( logtype==LOG_TYPE_NMEA ) strftime(FileName, sizeof(FileName), "/%Y-%m-%d/%Y-%m-%d-%H.log", &ts); // Create Filname: Dir + Date + Hour
-    if ( logtype==LOG_TYPE_SEASMART ) strftime(FileName, sizeof(FileName), "/%Y-%m-%d/%Y-%m-%d-%H.ssm", &ts); // Create Filname: Dir + Date + Hour
-    if ( logtype==LOG_TYPE_ACTISENSE ) strftime(FileName, sizeof(FileName), "/%Y-%m-%d/%Y-%m-%d-%H.ebl", &ts); // Create Filname: Dir + Date + Hour
-  }    
+    if ( logtype == LOG_TYPE_NMEA ) strftime(FileName, sizeof(FileName), "/%Y-%m-%d/%Y-%m-%d-%H.log", &ts); // Create Filname: Dir + Date + Hour
+    if ( logtype == LOG_TYPE_SEASMART ) strftime(FileName, sizeof(FileName), "/%Y-%m-%d/%Y-%m-%d-%H.ssm", &ts); // Create Filname: Dir + Date + Hour
+    if ( logtype == LOG_TYPE_ACTISENSE ) strftime(FileName, sizeof(FileName), "/%Y-%m-%d/%Y-%m-%d-%H.ebl", &ts); // Create Filname: Dir + Date + Hour
+  }
 
   SD.mkdir(DirName);
-  
-  digitalWrite(LED_BUILTIN, LedState);
-  LedState=!LedState;
 
-  #if ENABLE_DEBUG_LOG == 1
-    Serial.print(FileName);
-    Serial.print(": ");
+  digitalWrite(LED_BUILTIN, LedState);
+  LedState = !LedState;
+
+#if ENABLE_DEBUG_LOG == 1
+  Serial.print(FileName);
+  Serial.print(": ");
+  if (logtype != LOG_TYPE_ACTISENSE) {
     Serial.println(message);
-  #endif
-   
+  }
+  else {
+    int i = 0;
+    for (i = 0; i < len; i++) {
+      Serial.printf("%02x ", (unsigned int)message[i]);
+    }
+    Serial.println();
+  }
+#endif
+
   dataFile = SD.open(FileName, FILE_APPEND);
 
   // if the file is available, write to it:
@@ -213,16 +268,16 @@ void WriteSD(const char * message, int len, int logtype) {
 //*****************************************************************************
 //NMEA 2000 message handler
 void HandleNMEA2000Msg(const tN2kMsg & N2kMsg) {
-  int size=0;
+  int size = 0;
 
   char buf[MAX_NMEA2000_MESSAGE_SEASMART_SIZE]; //Actisense max size is smaller
-  
+
   if (SendSeaSmart) {
-  if ( N2kToSeasmart(N2kMsg, millis(), buf, MAX_NMEA2000_MESSAGE_SEASMART_SIZE) > 0 ) WriteSD(buf, strlen(buf), LOG_TYPE_SEASMART);
+    if ( N2kToSeasmart(N2kMsg, millis(), buf, MAX_NMEA2000_MESSAGE_SEASMART_SIZE) > 0 ) WriteSD(buf, strlen(buf), LOG_TYPE_SEASMART);
   }
-  
+
   if (SendActisense) {
-    size=N2kToActisense(N2kMsg, (unsigned char *) buf, MaxActisenseMsgBuf);
+    size = N2kToActisense(N2kMsg, (unsigned char *) buf, MaxActisenseMsgBuf);
     if ( size == 0 ) return;
     WriteSD(buf, size, LOG_TYPE_ACTISENSE);
   }
@@ -242,23 +297,23 @@ void SendNMEA0183Message(const tNMEA0183Msg & NMEA0183Msg) {
 
 //*****************************************************************************
 void loop() {
-  bool TimeSet=false;
-  
+  bool TimeSet = false;
+
   if (NMEA0183.GetMessage(NMEA0183Msg)) {  // Get AIS NMEA sentences from serial2
     SendNMEA0183Message(NMEA0183Msg);      // Send to SD Card
   }
-  
-  NMEA2000.ParseMessages();
-  
-  MyTime=tN2kDataToNMEA0183.Update();
 
-  if(MyTime!=0 && !TimeSet){  // Set system time from valid NMEA2000 time (only once)
+  NMEA2000.ParseMessages();
+
+  MyTime = tN2kDataToNMEA0183.Update();
+
+  if (MyTime != 0 && !TimeSet) { // Set system time from valid NMEA2000 time (only once)
     struct timeval tv;
     tv.tv_sec = MyTime;
     settimeofday(&tv, NULL);
-    TimeSet=true;
+    TimeSet = true;
   }
-  
+
   // Dummy to empty input buffer to avoid board to stuck with e.g. NMEA Reader
   if ( Serial.available() ) {
     Serial.read();
