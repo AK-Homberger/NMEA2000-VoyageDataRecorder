@@ -24,7 +24,7 @@ Configuration can be done with a config.txt file in SD root directory. Just add 
 The code is based on the NMEA 2000 library from Timo Lappalainen (https://github.com/ttlappalainen/NMEA2000).
 
 # Updates
-Version 0.5: 20.08.2019 - Added support for Digital Yacht format CANViewer(.can)
+Version 0.5: 20.08.2019 - Added support for Yacht Devices CAN Log Viewer format (.can)
 
 Version 0.4: 18.08.2019 - Added configuration via config.txt file on SD card
 
