@@ -8,6 +8,7 @@ The shown CAN bus ports of the ESP32 (GPIO 02/04) are valid for an AzDelivery ES
 ![SD card pins](https://github.com/AK-Homberger/NMEA2000-VoyageDataRecorder/blob/master/ESP32-SD.png)
 
 The logger is designed to be used with the OpenCPN Voyage Data Recorder Plugin (with .log files).
+
 The .ebl and .log files can be read with the Actisense EBL Reader application (https://www.actisense.com/product/nmea-reader-and-ebl-reader/). The .can format can be read with the Yacht Devices CAN Log Viewer (https://www.yachtd.com/products/can_view.html). For Seasmart format (.ssm) I have not found a reader so far.
 
 Current features:
