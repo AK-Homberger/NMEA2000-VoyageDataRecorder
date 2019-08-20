@@ -231,8 +231,8 @@ void CreateYD_SeviceMsg(unsigned char *MsgBuf) {
   const char ServiceMsg[] = "YDVR v05";
   uint16_t Word = 0;
 
-  Word = Word |= ((7) & 7) << 11; // Set data length-1 bits 12 - 14 - Service Messege is 8 byte
-  Word = Word |= ((millis() / 1000 / 60 ) & 1023); // Set minutes bits 1 - 10
+  Word |= ((7) & 7) << 11; // Set data length-1 bits 12 - 14 - Service Messege is 8 byte
+  Word |= ((millis() / 1000 / 60 ) & 1023); // Set minutes bits 1 - 10
 
   MsgBuf[0] = Word & 0xff;
   MsgBuf[1] = Word >> 8;
@@ -254,12 +254,16 @@ void CreateYD_SeviceMsg(unsigned char *MsgBuf) {
 //*****************************************************************************
 void N2kToYD_Can(const tN2kMsg &msg, unsigned char *MsgBuf) {
   int i = 0;
+  int len;
 
   uint16_t Word = 0;
   uint32_t Dword = 0;
 
-  Word = Word |= ((msg.DataLen - 1) & 7) << 11; // Set data length bits 12 - 14
-  Word = Word |= ((millis() / 1000 / 60 ) & 1023); // Set minutes bits 1 - 10
+  len=msg.DataLen; 
+  if (len> 8) len=8; // Can viewer can only manage max 8 byte messeges
+
+  Word |= ((len - 1) & 7) << 11; // Set data length bits 12 - 14
+  Word |= ((millis() / 1000 / 60 ) & 1023); // Set minutes bits 1 - 10
 
   MsgBuf[0] = Word & 0xff;
   MsgBuf[1] = Word >> 8;
@@ -278,7 +282,7 @@ void N2kToYD_Can(const tN2kMsg &msg, unsigned char *MsgBuf) {
   MsgBuf[7] = (Dword >> 16) & 0xff;
 
   for (i = 0; i < 8; i++) MsgBuf[8 + i] = 0xff;
-  for (i = 0; i < msg.DataLen; i++) MsgBuf[8 + i] = msg.Data[i];
+  for (i = 0; i < len; i++) MsgBuf[8 + i] = msg.Data[i];
 }
 
 
