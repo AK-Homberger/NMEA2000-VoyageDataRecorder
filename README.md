@@ -9,7 +9,7 @@ The shown CAN bus ports of the ESP32 (GPIO 02/04) are valid for an AzDelivery ES
 
 Current features:
 
-- Convert NMEA2000 to NMEA0183 (or alternatively to Seasmart/Actisense)
+- Convert NMEA2000 to NMEA0183 (or alternatively to Seasmart/Actisense/Canview)
 - Store NMEA0183 messages data permanently to SD card (.log)
 - Optional storage as Seasmart (.ssm) CANViewer (.can) or Actisense (.ebl) data
 - Optional mutiplexing serial data from port 2 to NMEA0183 (e.g. for AIS messages). See WifiGateway for circuit for RS232 level conversion.
