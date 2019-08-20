@@ -13,7 +13,7 @@
 */
 
 // ESP32 - NMEA2000 to NMEA0182 Multiplexer and SD Card Voyage Data Recorder
-// Version 0.4, 18.08.2019, AK-Homberger
+// Version 0.5, 19.08.2019, AK-Homberger
 
 #include <Arduino.h>
 #include <NMEA2000_CAN.h>  // This will automatically choose right CAN library and create suitable NMEA2000 object
@@ -28,19 +28,23 @@
 #include <N2kMsg.h>
 #include "N2kDataToNMEA0183.h"
 
-#define MaxActisenseMsgBuf 400
+#define MaxActisenseMsgBuf 500
 #define MAX_NMEA2000_MESSAGE_SEASMART_SIZE 500
 
-#define ENABLE_DEBUG_LOG 0 // Debug log, set to 1 to enable forward on USB-Serial
+#define ENABLE_DEBUG_LOG 1 // Debug log, set to 1 to enable forward on USB-Serial
 
-#define Escape 0x10
-#define StartOfText 0x02
-#define EndOfText 0x03
+#define EBL_Escape 0x10
+#define EBL_StartOfText 0x02
+#define EBL_EndOfText 0x03
+
+
 #define MsgTypeN2k 0x93
+
 
 #define LOG_TYPE_NMEA 1
 #define LOG_TYPE_ACTISENSE 2
 #define LOG_TYPE_SEASMART 3
+#define LOG_TYPE_YDCAN 4
 
 
 int LED_BUILTIN = 1;
@@ -48,7 +52,8 @@ bool LedState = false;
 
 bool SendNMEA0183Conversion = true; // Do we send/log NMEA2000 -> NMEA0183 conversion
 bool SendSeaSmart = false; // Do we send/log NMEA2000 messages in SeaSmart format
-bool SendActisense = false; // Do we send/log NMEA2000 messages in Actisense format
+bool SendActisense = false; // Do we send/log NMEA2000 messages in Actisense .ebl format
+bool SendYD_Can = false; // Do we send/log NMEA2000 messages Yacht Devices .can format
 
 
 tN2kDataToNMEA0183 tN2kDataToNMEA0183(&NMEA2000, 0);
@@ -79,6 +84,7 @@ void debug_log(char* str) {
 
 bool SDavailable = false;
 long MyTime = 0;
+long MyLine=0;
 
 //*****************************************************************************
 void setup() {
@@ -126,6 +132,7 @@ void ReadConfigFile() {
   SendNMEA0183Conversion = false;  // Config file available set all options to false
   SendActisense = false;
   SendSeaSmart = false;
+  SendYD_Can = false;
 
   while (file.available() && (i < sizeof(buf) - 1) ) {
     buf[i] = file.read();
@@ -142,6 +149,7 @@ void ReadConfigFile() {
     if (strcasecmp(token, "NMEA") == 0) SendNMEA0183Conversion = true;
     if (strcasecmp(token, "Actisense") == 0) SendActisense = true;
     if (strcasecmp(token, "Seasmart") == 0) SendSeaSmart = true;
+    if (strcasecmp(token, "YDCAN") == 0) SendYD_Can = true;
   }
 
 #if ENABLE_DEBUG_LOG == 1
@@ -149,62 +157,142 @@ void ReadConfigFile() {
   Serial.print("NMEA="); Serial.println(SendNMEA0183Conversion);
   Serial.print("Actisense="); Serial.println(SendActisense);
   Serial.print("Seasmart="); Serial.println(SendSeaSmart);
+  Serial.print("YDCan="); Serial.println(SendYD_Can);
 
 #endif
 }
 
 
 //*****************************************************************************
-void MyAddByteEscapedToBuf(unsigned char byteToAdd, uint8_t &idx, unsigned char *buf, int &byteSum)
+void MyAddByteEscapedToBuf(unsigned char byteToAdd, uint16_t &idx, unsigned char *buf, uint16_t &byteSum)
 {
   buf[idx++] = byteToAdd;
   byteSum += byteToAdd;
 
-  if (byteToAdd == Escape) {
-    buf[idx++] = Escape;
+  if (byteToAdd == EBL_Escape) {
+    buf[idx++] = EBL_Escape;
   }
 }
 
 //*****************************************************************************
 size_t N2kToActisense(const tN2kMsg &msg, unsigned char *ActisenseMsgBuf, size_t size) {
 
-  uint8_t msgIdx = 0;
-  int byteSum = 0;
-  uint8_t CheckSum;
+  uint16_t msgIdx = 0;
+  uint16_t byteSum = 0;
+  uint8_t CheckSum =0;
 
   unsigned long _PGN = msg.PGN;
-  unsigned long _MsgTime = msg.MsgTime;
-
+  uint32_t _MsgTime = 1; msg.MsgTime;
+  unsigned int DataLen = msg.DataLen;
+  
   if (size < MaxActisenseMsgBuf) return (0);
+  if (DataLen+11 > MaxActisenseMsgBuf) return (0);
 
-  ActisenseMsgBuf[msgIdx++] = Escape;
-  ActisenseMsgBuf[msgIdx++] = StartOfText;
+  ActisenseMsgBuf[msgIdx++] = EBL_Escape;
+  ActisenseMsgBuf[msgIdx++] = EBL_StartOfText;
+  
   MyAddByteEscapedToBuf(MsgTypeN2k, msgIdx, ActisenseMsgBuf, byteSum);
-  MyAddByteEscapedToBuf(msg.DataLen + 11, msgIdx, ActisenseMsgBuf, byteSum); //length does not include escaped chars
+  
+  MyAddByteEscapedToBuf(DataLen + 11, msgIdx, ActisenseMsgBuf, byteSum); //length does not include escaped chars
+  
   MyAddByteEscapedToBuf(msg.Priority, msgIdx, ActisenseMsgBuf, byteSum);
+  
   MyAddByteEscapedToBuf(_PGN & 0xff, msgIdx, ActisenseMsgBuf, byteSum); _PGN >>= 8;
   MyAddByteEscapedToBuf(_PGN & 0xff, msgIdx, ActisenseMsgBuf, byteSum); _PGN >>= 8;
   MyAddByteEscapedToBuf(_PGN & 0xff, msgIdx, ActisenseMsgBuf, byteSum);
+  
   MyAddByteEscapedToBuf(msg.Destination, msgIdx, ActisenseMsgBuf, byteSum);
   MyAddByteEscapedToBuf(msg.Source, msgIdx, ActisenseMsgBuf, byteSum);
-  // Time?
+
   MyAddByteEscapedToBuf(_MsgTime & 0xff, msgIdx, ActisenseMsgBuf, byteSum); _MsgTime >>= 8;
   MyAddByteEscapedToBuf(_MsgTime & 0xff, msgIdx, ActisenseMsgBuf, byteSum); _MsgTime >>= 8;
   MyAddByteEscapedToBuf(_MsgTime & 0xff, msgIdx, ActisenseMsgBuf, byteSum); _MsgTime >>= 8;
   MyAddByteEscapedToBuf(_MsgTime & 0xff, msgIdx, ActisenseMsgBuf, byteSum);
-  MyAddByteEscapedToBuf(msg.DataLen, msgIdx, ActisenseMsgBuf, byteSum);
+    
+  MyAddByteEscapedToBuf(DataLen, msgIdx, ActisenseMsgBuf, byteSum);
 
-  for (int i = 0; i < msg.DataLen; i++) MyAddByteEscapedToBuf(msg.Data[i], msgIdx, ActisenseMsgBuf, byteSum);
+  for (int i = 0; i < DataLen; i++) MyAddByteEscapedToBuf(msg.Data[i], msgIdx, ActisenseMsgBuf, byteSum);
   byteSum %= 256;
 
   CheckSum = (uint8_t)((byteSum == 0) ? 0 : (256 - byteSum));
   ActisenseMsgBuf[msgIdx++] = CheckSum;
-  if (CheckSum == Escape) ActisenseMsgBuf[msgIdx++] = CheckSum;
+  if (CheckSum == EBL_Escape) ActisenseMsgBuf[msgIdx++] = CheckSum;
 
-  ActisenseMsgBuf[msgIdx++] = Escape;
-  ActisenseMsgBuf[msgIdx++] = EndOfText;
+  ActisenseMsgBuf[msgIdx++] = EBL_Escape;
+  ActisenseMsgBuf[msgIdx++] = EBL_EndOfText;
 
   return (msgIdx);
+}
+
+
+//*****************************************************************************
+void CreateYD_SeviceMsg(unsigned char *MsgBuf) {
+  int i = 0;
+  const char ServiceMsg[] = "YDVR v05";
+  uint16_t Word = 0;
+
+  Word = Word |= ((7) & 7) << 11; // Set data length-1 bits 12 - 14 - Service Messege is 8 byte
+  Word = Word |= ((millis() / 1000 / 60 ) & 1023); // Set minutes bits 1 - 10
+
+  MsgBuf[0] = Word & 0xff;
+  MsgBuf[1] = Word >> 8;
+
+  Word = millis() % 60000;
+
+  MsgBuf[2] = Word & 0xff;
+  MsgBuf[3] = Word >> 8;
+
+  MsgBuf[4] = 0xff;
+  MsgBuf[5] = 0xff;
+  MsgBuf[4] = 0xff;
+  MsgBuf[7] = 0xff;
+
+  for (i = 0; i < 8; i++) MsgBuf[8 + i] = ServiceMsg[i];
+
+}
+
+//*****************************************************************************
+void N2kToYD_Can(const tN2kMsg &msg, unsigned char *MsgBuf) {
+  int i = 0;
+
+  uint16_t Word = 0;
+  uint32_t Dword = 0;
+
+  Word = Word |= ((msg.DataLen - 1) & 7) << 11; // Set data length bits 12 - 14
+  Word = Word |= ((millis() / 1000 / 60 ) & 1023); // Set minutes bits 1 - 10
+
+  MsgBuf[0] = Word & 0xff;
+  MsgBuf[1] = Word >> 8;
+
+  Word = millis() % 60000;
+
+  MsgBuf[2] = Word & 0xff;
+  MsgBuf[3] = Word >> 8;
+
+  MsgBuf[4] = msg.Source;
+
+  Dword = msg.PGN;
+
+  MsgBuf[5] = Dword & 0xff;
+  MsgBuf[6] = (Dword >> 8) & 0xff;
+  MsgBuf[7] = (Dword >> 16) & 0xff;
+
+  for (i = 0; i < 8; i++) MsgBuf[8 + i] = 0xff;
+  for (i = 0; i < msg.DataLen; i++) MsgBuf[8 + i] = msg.Data[i];
+}
+
+
+//*****************************************************************************
+// Test if file exists
+bool TestFileExists(char * FileName) {
+  File dataFile;
+
+  dataFile = SD.open(FileName, FILE_READ);
+
+  if (!dataFile) return (false);
+  dataFile.close();
+  return (true);
+
 }
 
 
@@ -215,6 +303,7 @@ void WriteSD(const char * message, int len, int logtype) {
   char FileName[80] = "/NoValidDate.log";
   char DirName[15] =  "/";
   File dataFile;
+  unsigned char ServiceMessage[20];
 
   if (!SDavailable) return;  // No SD card, no logging!!!
 
@@ -228,17 +317,31 @@ void WriteSD(const char * message, int len, int logtype) {
     if ( logtype == LOG_TYPE_NMEA ) strftime(FileName, sizeof(FileName), "/%Y-%m-%d/%Y-%m-%d-%H.log", &ts); // Create Filname: Dir + Date + Hour
     if ( logtype == LOG_TYPE_SEASMART ) strftime(FileName, sizeof(FileName), "/%Y-%m-%d/%Y-%m-%d-%H.ssm", &ts); // Create Filname: Dir + Date + Hour
     if ( logtype == LOG_TYPE_ACTISENSE ) strftime(FileName, sizeof(FileName), "/%Y-%m-%d/%Y-%m-%d-%H.ebl", &ts); // Create Filname: Dir + Date + Hour
-  }
+    if ( logtype == LOG_TYPE_YDCAN ) strftime(FileName, sizeof(FileName), "/%Y-%m-%d/%Y-%m-%d-%H.can", &ts); // Create Filname: Dir + Date + Hour
+  } else MyLine=1;
 
   SD.mkdir(DirName);
+
+  if (logtype == LOG_TYPE_YDCAN && TestFileExists(FileName) == false) {  // New file, create service message for .can, must be first entry in log
+    CreateYD_SeviceMsg(ServiceMessage);
+    dataFile = SD.open(FileName, FILE_WRITE);
+    dataFile.write(ServiceMessage, 16);
+    dataFile.close();
+  }
 
   digitalWrite(LED_BUILTIN, LedState);
   LedState = !LedState;
 
 #if ENABLE_DEBUG_LOG == 1
   Serial.print(FileName);
-  Serial.print(": ");
-  if (logtype != LOG_TYPE_ACTISENSE) {
+  Serial.print(" : ");
+  Serial.print(MyLine++);
+  Serial.print(" : ");  
+  Serial.print(" Len: ");
+  Serial.print(len);
+  Serial.print(" : ");
+  
+  if (logtype == LOG_TYPE_SEASMART || logtype == LOG_TYPE_NMEA) {
     Serial.println(message);
   }
   else {
@@ -254,7 +357,7 @@ void WriteSD(const char * message, int len, int logtype) {
 
   // if the file is available, write to it:
   if (dataFile) {
-    if (logtype == LOG_TYPE_ACTISENSE) dataFile.write((unsigned char*)message, len);
+    if (logtype == LOG_TYPE_ACTISENSE || logtype == LOG_TYPE_YDCAN) dataFile.write((unsigned char*)message, len);
     else dataFile.println(message);
     dataFile.close();
   }
@@ -267,7 +370,7 @@ void WriteSD(const char * message, int len, int logtype) {
 
 //*****************************************************************************
 //NMEA 2000 message handler
-void HandleNMEA2000Msg(const tN2kMsg & N2kMsg) {
+void HandleNMEA2000Msg(const tN2kMsg &N2kMsg) {
   int size = 0;
 
   char buf[MAX_NMEA2000_MESSAGE_SEASMART_SIZE]; //Actisense max size is smaller
@@ -281,6 +384,12 @@ void HandleNMEA2000Msg(const tN2kMsg & N2kMsg) {
     if ( size == 0 ) return;
     WriteSD(buf, size, LOG_TYPE_ACTISENSE);
   }
+
+  if (SendYD_Can) {
+    N2kToYD_Can(N2kMsg, (unsigned char *) buf);
+    WriteSD(buf, 16, LOG_TYPE_YDCAN);
+  }
+
 }
 
 
