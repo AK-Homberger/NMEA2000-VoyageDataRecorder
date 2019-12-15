@@ -13,7 +13,10 @@
 */
 
 // ESP32 - NMEA2000 to NMEA0182 Multiplexer and SD Card Voyage Data Recorder
-// Version 0.5, 19.08.2019, AK-Homberger
+// Version 0.6, 15.12.2019, AK-Homberger
+
+#define ESP32_CAN_TX_PIN GPIO_NUM_2  // Set CAN TX port to 2 
+#define ESP32_CAN_RX_PIN GPIO_NUM_4  // Set CAN RX port to 4
 
 #include <Arduino.h>
 #include <NMEA2000_CAN.h>  // This will automatically choose right CAN library and create suitable NMEA2000 object
