@@ -21,11 +21,11 @@ The .ebl and .log files can be read with the Actisense EBL Reader application (h
 
 Configuration can be done with a config.txt file in SD root directory. Just add keywords (NMEA, Actisense, DYcan or Seasmart) to enable logging format. No config file means NMEA logging as default.
 
-The code is based on the NMEA 2000 / NMEA0183 libraries from Timo Lappalainen (https://github.com/ttlappalainen). Download and install the libraries from GitHub link above:
+The code is based on the NMEA 2000 / NMEA0183 libraries from Timo Lappalainen (https://github.com/ttlappalainen). Download and install the following libraries from GitHub link above:
 
-    NMEA2000
-    NMEA2000_esp32
-    NMEA0183
+- NMEA2000
+- NMEA2000_esp32
+- NMEA0183
 
 
 # Updates
