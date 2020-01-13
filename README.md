@@ -19,7 +19,7 @@ The logger is designed to be used with the OpenCPN Voyage Data Recorder Plugin (
 
 The .ebl and .log files can be read with the Actisense EBL Reader application (https://www.actisense.com/product/nmea-reader-and-ebl-reader/). The .can format can be read with the Yacht Devices CAN Log Viewer (https://www.yachtd.com/products/can_view.html). For Seasmart format (.ssm) I have not found a reader so far.
 
-Configuration can be done with a config.txt file in SD root directory. Just add keywords (NMEA, Actisense, DYcan or Seasmart) to enable logging format. No config file means NMEA logging as default.
+Configuration can be done with a config.txt file in SD root directory. Just add keywords (NMEA, Actisense, YDcan or Seasmart) to enable logging format. No config file means NMEA logging as default.
 
 The code is based on the NMEA 2000 / NMEA0183 libraries from Timo Lappalainen (https://github.com/ttlappalainen). Download and install the following libraries from GitHub link above:
 
