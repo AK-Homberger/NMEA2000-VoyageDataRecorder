@@ -1,4 +1,4 @@
-# NMEA2000-Voyage Data Recorder / Logger
+# NMEA2000 Voyage Data Recorder / Logger
 
 This is the develoment space for a NMEA 2000 Voyage Data Recorder based on an ESP32 with CAN bus and SD card.
 The logger is using a SN65HVD230 CAN bus transceiver. 
